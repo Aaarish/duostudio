@@ -1,0 +1,10 @@
+server:
+  port: 9191
+
+spring:
+  application:
+    name: duostudio-backend
+  datasource:
+    url: jdbc:postgresql://localhost:5432/duostudio-db
+    username: postgres
+    password: root
