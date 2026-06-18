@@ -4,15 +4,16 @@ import com.roya.duostudio_backend.auth.User;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-import tools.jackson.databind.JsonNode;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
 @Table(name = "boards")
 public class Board {
     @Id
+    @GeneratedValue
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -23,7 +24,7 @@ public class Board {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "board_data", columnDefinition = "jsonb", nullable = false)
-    private JsonNode boardData;
+    private Map<String, Object> boardData;
 
     @Version
     @Column(nullable = false)
@@ -38,12 +39,10 @@ public class Board {
     public Board() {
     }
 
-    public Board(User user, BoardType type, JsonNode boardData, Long version) {
-        this.id = UUID.randomUUID();
+    public Board(User user, BoardType type, Map<String, Object> boardData) {
         this.user = user;
         this.type = type;
         this.boardData = boardData;
-        this.version = version;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -72,11 +71,11 @@ public class Board {
         this.type = type;
     }
 
-    public JsonNode getBoardData() {
+    public Map<String, Object> getBoardData() {
         return boardData;
     }
 
-    public void setBoardData(JsonNode boardData) {
+    public void setBoardData(Map<String, Object> boardData) {
         this.boardData = boardData;
     }
 

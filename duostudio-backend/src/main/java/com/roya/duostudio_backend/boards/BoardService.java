@@ -4,6 +4,7 @@ import com.roya.duostudio_backend.auth.User;
 import jakarta.persistence.OptimisticLockException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,7 +17,7 @@ public class BoardService {
     }
 
     public BoardResponse createBoard(CreateBoardRequest request, User user) {
-        Board board = new Board(user, request.type(), request.boardData(), request.version());
+        Board board = new Board(user, request.type(), request.boardData());
 
         boardDao.save(board);
         return map(board);
@@ -33,14 +34,15 @@ public class BoardService {
         Board board = boardDao.findById(boardId)
                 .orElseThrow(() -> new RuntimeException("Board not found with id: " + boardId));
 
-        if (!board.getVersion().equals(request.version())) {
-            throw new OptimisticLockException(
-                    "Whiteboard was modified by another session"
-            );
-        }
+//        if (!board.getVersion().equals(request.version())) {
+//            throw new OptimisticLockException(
+//                    "Whiteboard was modified by another session"
+//            );
+//        }
 
         board.setBoardData(request.boardData());
-        board.setVersion(request.version());
+        board.setUpdatedAt(LocalDateTime.now());
+//        board.setVersion(request.version());
 
         Board savedBoard = boardDao.save(board);
 

@@ -1,8 +1,8 @@
 package com.roya.duostudio_backend.boards;
 
-import tools.jackson.databind.JsonNode;
+import java.util.Map;
 
 public record UpdateBoardRequest(
-        JsonNode boardData,
+        Map<String, Object> boardData,
         Long version) {
 }

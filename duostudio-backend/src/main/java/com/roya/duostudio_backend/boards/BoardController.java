@@ -1,7 +1,9 @@
 package com.roya.duostudio_backend.boards;
 
+import com.roya.duostudio_backend.auth.AuthUser;
 import com.roya.duostudio_backend.auth.User;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,8 +20,8 @@ public class BoardController {
 
 
     @PostMapping
-    public ResponseEntity<BoardResponse> createBoard(@RequestBody CreateBoardRequest request, User user) {
-        return ResponseEntity.ok(boardService.createBoard(request, user));
+    public ResponseEntity<BoardResponse> createBoard(@RequestBody CreateBoardRequest request, @AuthenticationPrincipal AuthUser user) {
+        return ResponseEntity.ok(boardService.createBoard(request, user.getUser()));
     }
 
     @GetMapping("/{boardId}")
