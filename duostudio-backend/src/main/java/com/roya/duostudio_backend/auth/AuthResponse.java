@@ -1,6 +1,9 @@
 package com.roya.duostudio_backend.auth;
 
+import java.util.UUID;
+
 public record AuthResponse (
         String token,
-        String userId) {
+        UUID userId,
+        String username) {
 }

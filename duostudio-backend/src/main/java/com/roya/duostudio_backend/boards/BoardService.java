@@ -56,7 +56,7 @@ public class BoardService {
         boardDao.delete(board);
     }
 
-    public List<BoardResponse> getAllBoardsOfUser(String userId) {
+    public List<BoardResponse> getAllBoardsOfUser(UUID userId) {
         return boardDao.findByUserId(userId).stream()
                 .map(this::map)
                 .toList();

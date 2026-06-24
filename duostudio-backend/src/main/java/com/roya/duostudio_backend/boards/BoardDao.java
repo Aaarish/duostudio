@@ -12,6 +12,6 @@ import java.util.UUID;
 public interface BoardDao extends JpaRepository<Board, UUID> {
     List<Board> findByUser(User user);
 
-    List<Board> findByUserId(String userId);
+    List<Board> findByUserId(UUID userId);
 
 }

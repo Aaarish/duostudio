@@ -3,8 +3,6 @@ package com.roya.duostudio_backend.auth;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -13,15 +11,15 @@ public class AuthService {
     private final UserDao userDao;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authManager;
-    private final UserDetailsService userDetailsService;
+    private final AuthUserService authUserService;
     private final PasswordEncoder passwordEncoder;
 
 
-    public AuthService(UserDao userDao, JwtUtil jwtUtil, AuthenticationManager authManager, UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
+    public AuthService(UserDao userDao, JwtUtil jwtUtil, AuthenticationManager authManager, AuthUserService authUserService, PasswordEncoder passwordEncoder) {
         this.userDao = userDao;
         this.jwtUtil = jwtUtil;
         this.authManager = authManager;
-        this.userDetailsService = userDetailsService;
+        this.authUserService = authUserService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -31,7 +29,7 @@ public class AuthService {
 
         AuthUser authUser = new AuthUser(savedUser);
         String token = jwtUtil.generateToken(authUser);
-        return new AuthResponse(token, savedUser.getUsername());
+        return new AuthResponse(token, savedUser.getId(), savedUser.getUsername());
     }
 
     public AuthResponse login(AuthRequest request) {
@@ -39,10 +37,10 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(request.username(), request.password())
         );
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(request.username());
-        String token = jwtUtil.generateToken(userDetails);
+        AuthUser authUser = authUserService.loadUserByUsername(request.username());
+        String token = jwtUtil.generateToken(authUser);
 
-        return new AuthResponse(token, userDetails.getUsername());
+        return new AuthResponse(token, authUser.getUser().getId(), authUser.getUsername());
     }
 
 }
