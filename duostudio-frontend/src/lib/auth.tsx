@@ -5,8 +5,8 @@ import { loginRequest, signupRequest, type User } from "./api";
 type AuthContextValue = {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
+  signup: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
 };
 
@@ -32,13 +32,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u);
   };
 
-  const login = async (email: string, password: string) => {
-    const res = await loginMutation.mutateAsync({ email, password });
+  const login = async (username: string, password: string) => {
+    const res = await loginMutation.mutateAsync({ username, password });
     persist(res.user, res.token);
     qc.invalidateQueries();
   };
-  const signup = async (name: string, email: string, password: string) => {
-    const res = await signupMutation.mutateAsync({ name, email, password });
+  const signup = async (email: string, username: string, password: string) => {
+    const res = await signupMutation.mutateAsync({ email, username, password });
     persist(res.user, res.token);
     qc.invalidateQueries();
   };

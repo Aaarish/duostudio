@@ -36,7 +36,7 @@ function AuthHeaderActions() {
             className="flex items-center gap-1.5 rounded-md glass-panel px-3 py-1.5 text-xs font-mono uppercase tracking-wider hover:bg-muted transition-colors"
           >
             <LayoutDashboard className="h-3.5 w-3.5" />
-            {user?.name?.split(" ")[0] ?? "Dashboard"}
+            {user?.username ?? "Dashboard"}
           </Link>
           <button
             onClick={logout}

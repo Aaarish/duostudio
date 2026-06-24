@@ -9,36 +9,48 @@ import {
   type Scratchboard,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Trash2, LogOut, ArrowLeft, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
 });
 
+const BOARD_TYPES = ["SELECT", "TEXT", "FREESTYLE", "FLOWCHART"] as const;
+
 function DashboardPage() {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [title, setTitle] = useState("");
+  const [type, setType] = useState<string>("SELECT");
 
   useEffect(() => {
     if (!isAuthenticated) navigate({ to: "/" });
   }, [isAuthenticated, navigate]);
 
   const boardsQuery = useQuery({
-    queryKey: ["boards", user?.id],
-    queryFn: () => fetchBoardsRequest(user!.id),
+    queryKey: ["boards", user?.userId ?? user?.username],
+    queryFn: () => fetchBoardsRequest(user?.userId),
     enabled: !!user,
   });
 
   const createMutation = useMutation({
     mutationFn: createBoardRequest,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["boards", user?.id] }),
+    onSuccess: (board) => {
+      qc.invalidateQueries({ queryKey: ["boards", user?.userId ?? user?.username] });
+      // Open the freshly-created board in the studio.
+      if (board?.id) navigate({ to: "/", search: { boardId: board.id } });
+    },
   });
   const deleteMutation = useMutation({
     mutationFn: deleteBoardRequest,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["boards", user?.id] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["boards", user?.userId ?? user?.username] }),
   });
 
   if (!user) return null;
@@ -60,14 +72,16 @@ function DashboardPage() {
         <section className="mb-10 rounded-xl border border-border bg-card p-6">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-background text-xl font-semibold">
-              {user.name.charAt(0).toUpperCase()}
+              {user.username.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="font-display text-2xl tracking-tight">{user.name}</h1>
-              <p className="text-sm text-muted-foreground">{user.email}</p>
-              <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                joined {new Date(user.createdAt).toLocaleDateString()}
-              </p>
+              <h1 className="font-display text-2xl tracking-tight">{user.username}</h1>
+              {user.email && <p className="text-sm text-muted-foreground">{user.email}</p>}
+              {user.roles && user.roles.length > 0 && (
+                <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                  {user.roles.join(" · ")}
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -83,20 +97,21 @@ function DashboardPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!title.trim()) return;
-              createMutation.mutate({ userId: user.id, title: title.trim() });
-              setTitle("");
+              createMutation.mutate({ type, boardData: { shapes: [] } });
             }}
             className="mb-4 flex gap-2"
           >
-            <Input
-              placeholder="New board title…"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <Button type="submit" disabled={createMutation.isPending || !title.trim()}>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {BOARD_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button type="submit" disabled={createMutation.isPending}>
               {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Create
+              Create board
             </Button>
           </form>
 
@@ -104,12 +119,17 @@ function DashboardPage() {
             <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
             </div>
+          ) : boardsQuery.isError ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+              Failed to load boards. Check that the backend is running at the configured API base URL.
+            </div>
           ) : boardsQuery.data && boardsQuery.data.length > 0 ? (
             <ul className="grid gap-3 sm:grid-cols-2">
               {boardsQuery.data.map((b) => (
                 <BoardCard
                   key={b.id}
                   board={b}
+                  onOpen={() => navigate({ to: "/", search: { boardId: b.id } })}
                   onDelete={() => deleteMutation.mutate(b.id)}
                   deleting={deleteMutation.isPending}
                 />
@@ -127,16 +147,19 @@ function DashboardPage() {
 }
 
 function BoardCard({
-  board, onDelete, deleting,
-}: { board: Scratchboard; onDelete: () => void; deleting: boolean }) {
+  board, onOpen, onDelete, deleting,
+}: { board: Scratchboard; onOpen: () => void; onDelete: () => void; deleting: boolean }) {
+  const shapeCount = board.boardData?.shapes?.length ?? 0;
+  const title = board.title || `${board.type ?? "Board"} · ${board.id.slice(0, 8)}`;
   return (
     <li className="group flex items-center justify-between rounded-lg border border-border bg-card p-4 transition-colors hover:border-foreground/30">
-      <div>
-        <p className="font-medium">{board.title}</p>
+      <button onClick={onOpen} className="flex-1 text-left">
+        <p className="font-medium">{title}</p>
         <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          updated {new Date(board.updatedAt).toLocaleString()}
+          {shapeCount} shapes
+          {board.updatedAt ? ` · updated ${new Date(board.updatedAt).toLocaleString()}` : ""}
         </p>
-      </div>
+      </button>
       <button
         onClick={onDelete}
         disabled={deleting}

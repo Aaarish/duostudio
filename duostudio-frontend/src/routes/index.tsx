@@ -1,19 +1,30 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
 import { useBoard, type BoardApi } from "@/whiteboard/useBoard";
 import { BoardCanvas, type BoardCanvasHandle } from "@/whiteboard/BoardCanvas";
 import { Toolbar } from "@/whiteboard/Toolbar";
 import { useShortcuts } from "@/whiteboard/useShortcuts";
-import { Keyboard, Copy, FileDown, Maximize2, Minimize2, ArrowLeftRight, ArrowRightLeft } from "lucide-react";
+import { Keyboard, Copy, FileDown, Maximize2, Minimize2, ArrowLeftRight, ArrowRightLeft, Save, Loader2, Check } from "lucide-react";
 import jsPDF from "jspdf";
+import { fetchBoardRequest, updateBoardRequest, createBoardRequest } from "@/lib/api";
+import type { Shape } from "@/whiteboard/types";
+
+type StudioSearch = { boardId?: string };
 
 export const Route = createFileRoute("/")({
   component: Index,
+  validateSearch: (search: Record<string, unknown>): StudioSearch => ({
+    boardId: typeof search.boardId === "string" ? search.boardId : undefined,
+  }),
 });
+
+type BoardMeta = { id: string; version: number };
 
 type ZoomState = "none" | "left" | "right";
 
 function Index() {
+  const { boardId } = Route.useSearch();
   const left = useBoard();
   const right = useBoard();
   const leftRef = useRef<BoardCanvasHandle>(null);
@@ -21,6 +32,49 @@ function Index() {
   const [focused, setFocused] = useState<0 | 1>(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [zoom, setZoom] = useState<ZoomState>("none");
+  const [leftMeta, setLeftMeta] = useState<BoardMeta | null>(null);
+  const [rightMeta, setRightMeta] = useState<BoardMeta | null>(null);
+
+  // Load board from `?boardId=` into the left canvas on mount / id change.
+  useEffect(() => {
+    let cancelled = false;
+    if (!boardId) return;
+    (async () => {
+      try {
+        const board = await fetchBoardRequest(boardId);
+        if (cancelled) return;
+        const shapes = (board.boardData?.shapes ?? []) as Shape[];
+        left.replaceShapes(shapes);
+        setLeftMeta({ id: board.id, version: board.version ?? 0 });
+      } catch (err) {
+        console.error("Failed to load board", err);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardId]);
+
+  const saveLeftMutation = useMutation({
+    mutationFn: async () => {
+      const shapes = left.state.shapes;
+      if (leftMeta) {
+        return updateBoardRequest(leftMeta.id, { boardData: { shapes }, version: leftMeta.version });
+      }
+      return createBoardRequest({ type: "SELECT", boardData: { shapes } });
+    },
+    onSuccess: (board) => setLeftMeta({ id: board.id, version: board.version ?? (leftMeta?.version ?? 0) + 1 }),
+  });
+
+  const saveRightMutation = useMutation({
+    mutationFn: async () => {
+      const shapes = right.state.shapes;
+      if (rightMeta) {
+        return updateBoardRequest(rightMeta.id, { boardData: { shapes }, version: rightMeta.version });
+      }
+      return createBoardRequest({ type: "SELECT", boardData: { shapes } });
+    },
+    onSuccess: (board) => setRightMeta({ id: board.id, version: board.version ?? (rightMeta?.version ?? 0) + 1 }),
+  });
 
   useShortcuts([left, right], focused, setFocused, (idx, kind) => {
     const ref = idx === 0 ? leftRef.current : rightRef.current;
@@ -161,6 +215,10 @@ function Index() {
             replicateIcon="right"
             onZoom={() => setZoom(zoom === "left" ? "none" : "left")}
             zoomed={zoom === "left"}
+            onSave={() => saveLeftMutation.mutate()}
+            saving={saveLeftMutation.isPending}
+            saved={saveLeftMutation.isSuccess && !saveLeftMutation.isPending}
+            boardId={leftMeta?.id}
           />
         </div>
 
@@ -187,6 +245,10 @@ function Index() {
             replicateIcon="left"
             onZoom={() => setZoom(zoom === "right" ? "none" : "right")}
             zoomed={zoom === "right"}
+            onSave={() => saveRightMutation.mutate()}
+            saving={saveRightMutation.isPending}
+            saved={saveRightMutation.isSuccess && !saveRightMutation.isPending}
+            boardId={rightMeta?.id}
           />
         </div>
 
@@ -233,6 +295,7 @@ function Index() {
 
 function BoardActions({
   label, onCopy, onExport, onReplicate, replicateIcon, onZoom, zoomed,
+  onSave, saving, saved, boardId,
 }: {
   label: string;
   onCopy: () => void;
@@ -241,12 +304,22 @@ function BoardActions({
   replicateIcon: "left" | "right";
   onZoom: () => void;
   zoomed: boolean;
+  onSave: () => void;
+  saving: boolean;
+  saved: boolean;
+  boardId?: string;
 }) {
   const ReplicateIcon = replicateIcon === "right" ? ArrowRightLeft : ArrowLeftRight;
   return (
     <div className="absolute top-3 right-3 z-10 flex items-center gap-1 glass-panel rounded-md p-1">
       <ActionBtn title={`Replicate to other board`} onClick={onReplicate}><ReplicateIcon className="h-3.5 w-3.5" /></ActionBtn>
       <ActionBtn title="Copy to clipboard" onClick={onCopy}><Copy className="h-3.5 w-3.5" /></ActionBtn>
+      <ActionBtn
+        title={boardId ? `Save ${label} (updates board ${boardId.slice(0, 6)}…)` : `Save ${label} (creates new board)`}
+        onClick={onSave}
+      >
+        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Save className="h-3.5 w-3.5" />}
+      </ActionBtn>
       <ActionBtn title="Export as PDF" onClick={onExport}><FileDown className="h-3.5 w-3.5" /></ActionBtn>
       <ActionBtn title={zoomed ? "Restore split view" : `Zoom ${label}`} onClick={onZoom}>
         {zoomed ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}

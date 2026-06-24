@@ -18,7 +18,7 @@ export function AuthModal({
   defaultMode?: Mode;
 }) {
   const [mode, setMode] = useState<Mode>(defaultMode);
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +30,14 @@ export function AuthModal({
     setError(null);
     setLoading(true);
     try {
-      if (mode === "login") await login(email, password);
-      else await signup(name, email, password);
+      if (mode === "login") await login(username, password);
+      else await signup(email, username, password);
       onOpenChange(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err instanceof Error ? err.message : "Something went wrong");
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -56,17 +59,17 @@ export function AuthModal({
         <form onSubmit={submit} className="space-y-3 pt-2">
           {mode === "signup" && (
             <div className="space-y-1.5">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
             </div>
           )}
           <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Label htmlFor="username">Username</Label>
+            <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus={mode === "login"} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={4} />
+            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={1} />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
@@ -95,7 +98,6 @@ export function AutoAuthPrompt({ delayMs = 5000 }: { delayMs?: number }) {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  // Show once per page load, after delay, for unauthenticated visitors.
   useEffect(() => {
     if (isAuthenticated || dismissed) return;
     const timer = window.setTimeout(() => setOpen(true), delayMs);
