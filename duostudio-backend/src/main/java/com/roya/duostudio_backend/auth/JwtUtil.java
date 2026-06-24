@@ -6,6 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -13,7 +14,9 @@ import java.util.List;
 
 @Service
 public class JwtUtil {
-    private static final String SECRET_KEY = "secretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecret";
+
+    @Value("${jwt.secret.key}")
+    private String SECRET_KEY;
     private static final long EXPIRATION_TIME_IN_MILLIS = 1000 * 60 * 60 * 10L; // 10 hours
     private static final String ISSUER = "THE_CLUB_APPLICATION";
 

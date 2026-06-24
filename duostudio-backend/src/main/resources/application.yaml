@@ -8,3 +8,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+
+jwt:
+  secret:
+    key: ${SECRET_KEY}
