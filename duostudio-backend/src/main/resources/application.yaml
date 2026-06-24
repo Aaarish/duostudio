@@ -1,14 +1,14 @@
-server:
-  port: 9191
-
 spring:
   application:
     name: duostudio-backend
   datasource:
-    url: jdbc:postgresql://localhost:5432/duostudio-db
-    username: postgres
-    password: root
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: validate
+
+jwt:
+  secret:
+    key: ${SECRET_KEY}
