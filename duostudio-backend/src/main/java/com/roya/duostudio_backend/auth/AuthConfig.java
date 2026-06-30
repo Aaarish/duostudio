@@ -24,7 +24,7 @@ public class AuthConfig {
         this.jwtAuthFilter = jwtAuthFilter;
     }
 
-    private static final List<String> WHITELIST_ORIGINS = List.of("http://localhost:8080", "https://duostudio-yf15.onrender.com");
+    private static final List<String> WHITELIST_ORIGINS = List.of("http://localhost:8080", "https://duostudio-web.onrender.com");
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
