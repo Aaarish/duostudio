@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,6 +30,7 @@ public class AuthService {
         this.refreshTokenDao = refreshTokenDao;
     }
 
+    @Transactional
     public AuthResponse register(RegisterRequest request, HttpServletResponse response) {
         AuthUserRecord userRecord = authUserService.registerUser(request.email(), request.username(), request.password());
         AccessAndRefreshToken accessAndRefreshTokens = createAccessAndRefreshTokens(userRecord);
@@ -38,6 +40,7 @@ public class AuthService {
         return new AuthResponse(accessAndRefreshTokens.accessToken(), userRecord.userId());
     }
 
+    @Transactional
     public AuthResponse login(AuthRequest request, HttpServletResponse response) {
         AuthUserRecord userRecord = authUserService.authenticate(request.username(), request.password());
         AccessAndRefreshToken accessAndRefreshTokens = createAccessAndRefreshTokens(userRecord);
@@ -47,6 +50,7 @@ public class AuthService {
         return new AuthResponse(accessAndRefreshTokens.accessToken(), userRecord.userId());
     }
 
+    @Transactional
     public ResponseEntity<AuthResponse> refreshToken(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = extractRefreshCookie(request);
         if (refreshToken == null || !jwtUtil.validateToken(refreshToken) || !jwtUtil.isRefreshToken(refreshToken)) {
@@ -96,6 +100,7 @@ public class AuthService {
         return ResponseEntity.ok(new AuthResponse(accessAndRefreshTokens.accessToken(), userRecord.userId()));
     }
 
+    @Transactional
     public void logout(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = extractRefreshCookie(request);
 

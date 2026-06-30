@@ -3,6 +3,7 @@ package com.roya.duostudio_backend.boards;
 import com.roya.duostudio_backend.auth.User;
 import com.roya.duostudio_backend.auth.UserDao;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,6 +19,7 @@ public class BoardService {
         this.userDao = userDao;
     }
 
+    @Transactional
     public BoardResponse createBoard(CreateBoardRequest request, String username) {
         User user = userDao.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found with username: " + username));
@@ -34,6 +36,7 @@ public class BoardService {
         return map(board);
     }
 
+    @Transactional
     public BoardResponse updateBoard(UUID boardId, UpdateBoardRequest request) {
         Board board = boardDao.findById(boardId)
                 .orElseThrow(() -> new RuntimeException("Board not found with id: " + boardId));
@@ -53,6 +56,7 @@ public class BoardService {
         return map(savedBoard);
     }
 
+    @Transactional
     public void deleteBoard(UUID boardId) {
         Board board = boardDao.findById(boardId)
                 .orElseThrow(() -> new RuntimeException("Board not found with id: " + boardId));
