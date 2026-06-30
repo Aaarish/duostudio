@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { loginRequest, signupRequest, type User } from "./api";
+import { api, loginRequest, signupRequest, type User } from "./api";
 
 type AuthContextValue = {
   user: User | null;
@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     qc.invalidateQueries();
   };
   const logout = () => {
+    api.post("/auth/logout").catch(() => {});
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem("auth_token");
     setUser(null);
