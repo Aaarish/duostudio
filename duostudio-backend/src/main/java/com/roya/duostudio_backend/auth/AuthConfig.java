@@ -2,9 +2,6 @@ package com.roya.duostudio_backend.auth;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,11 +18,9 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
 
 @Configuration
 public class AuthConfig {
-    private final AuthUserService authUserService;
     private final JwtAuthFilter jwtAuthFilter;
 
-    public AuthConfig(AuthUserService authUserService, JwtAuthFilter jwtAuthFilter) {
-        this.authUserService = authUserService;
+    public AuthConfig(JwtAuthFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
     }
 
@@ -53,7 +48,6 @@ public class AuthConfig {
                         auth -> auth
                                 .requestMatchers("/auth/**").permitAll()
                                 .anyRequest().authenticated())
-                .authenticationManager(authenticationManager())
                 .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -63,13 +57,6 @@ public class AuthConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(11);
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager() {
-        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider(authUserService);
-        authenticationProvider.setPasswordEncoder(passwordEncoder());
-        return new ProviderManager(authenticationProvider);
     }
 
 }

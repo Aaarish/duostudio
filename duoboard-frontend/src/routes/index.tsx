@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useBoard, type BoardApi } from "@/whiteboard/useBoard";
 import { BoardCanvas, type BoardCanvasHandle } from "@/whiteboard/BoardCanvas";
@@ -8,6 +8,7 @@ import { useShortcuts } from "@/whiteboard/useShortcuts";
 import { Keyboard, Copy, FileDown, Maximize2, Minimize2, ArrowLeftRight, ArrowRightLeft, Save, Loader2, Check } from "lucide-react";
 import jsPDF from "jspdf";
 import { fetchBoardRequest, updateBoardRequest, createBoardRequest } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import type { Shape } from "@/whiteboard/types";
 
 type StudioSearch = { boardId?: string };
@@ -25,6 +26,7 @@ type ZoomState = "none" | "left" | "right";
 
 function Index() {
   const { boardId } = Route.useSearch();
+  const { isAuthenticated } = useAuth();
   const left = useBoard();
   const right = useBoard();
   const leftRef = useRef<BoardCanvasHandle>(null);
@@ -38,14 +40,34 @@ function Index() {
   // Load board from `?boardId=` into the left canvas on mount / id change.
   useEffect(() => {
     let cancelled = false;
-    if (!boardId) return;
+    if (!boardId) {
+      // Reset both boards to a clean state (used on logout / home nav).
+      left.replaceShapes([]);
+      right.replaceShapes([]);
+      left.setNotepadText("");
+      right.setNotepadText("");
+      setLeftMeta(null);
+      setRightMeta(null);
+      return;
+    }
     (async () => {
       try {
         const board = await fetchBoardRequest(boardId);
         if (cancelled) return;
-        const shapes = (board.boardData?.shapes ?? []) as Shape[];
+        const bd = board.boardData ?? { shapes: [] };
+        const shapes = (bd.shapes ?? []) as Shape[];
+        // Map backend board type → UI mode so the canvas renders correctly.
+        const typeToMode: Record<string, "select" | "freestyle" | "text" | "flowchart"> = {
+          SELECT: "select", FREESTYLE: "freestyle", TEXT: "text", FLOWCHART: "flowchart",
+        };
+        const mode = typeToMode[(board.type || "SELECT").toUpperCase()];
+        if (mode) left.setMode(mode);
         left.replaceShapes(shapes);
+        // If backend stored notepad text alongside shapes, restore it.
+        const np = (bd as unknown as { notepadText?: string }).notepadText;
+        if (typeof np === "string") left.setNotepadText(np);
         setLeftMeta({ id: board.id, version: board.version ?? 0 });
+        setFocused(0);
       } catch (err) {
         console.error("Failed to load board", err);
       }
@@ -54,13 +76,24 @@ function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardId]);
 
+  const modeToType = (m: string): string => {
+    switch (m) {
+      case "text": return "TEXT";
+      case "freestyle": return "FREESTYLE";
+      case "flowchart": return "FLOWCHART";
+      default: return "SELECT";
+    }
+  };
+
   const saveLeftMutation = useMutation({
     mutationFn: async () => {
       const shapes = left.state.shapes;
+      const boardData = { shapes, notepadText: left.state.notepadText };
+      const type = modeToType(left.state.mode);
       if (leftMeta) {
-        return updateBoardRequest(leftMeta.id, { boardData: { shapes }, version: leftMeta.version });
+        return updateBoardRequest(leftMeta.id, { boardData, version: leftMeta.version, type });
       }
-      return createBoardRequest({ type: "SELECT", boardData: { shapes } });
+      return createBoardRequest({ type, boardData });
     },
     onSuccess: (board) => setLeftMeta({ id: board.id, version: board.version ?? (leftMeta?.version ?? 0) + 1 }),
   });
@@ -68,13 +101,16 @@ function Index() {
   const saveRightMutation = useMutation({
     mutationFn: async () => {
       const shapes = right.state.shapes;
+      const boardData = { shapes, notepadText: right.state.notepadText };
+      const type = modeToType(right.state.mode);
       if (rightMeta) {
-        return updateBoardRequest(rightMeta.id, { boardData: { shapes }, version: rightMeta.version });
+        return updateBoardRequest(rightMeta.id, { boardData, version: rightMeta.version, type });
       }
-      return createBoardRequest({ type: "SELECT", boardData: { shapes } });
+      return createBoardRequest({ type, boardData });
     },
     onSuccess: (board) => setRightMeta({ id: board.id, version: board.version ?? (rightMeta?.version ?? 0) + 1 }),
   });
+
 
   useShortcuts([left, right], focused, setFocused, (idx, kind) => {
     const ref = idx === 0 ? leftRef.current : rightRef.current;
@@ -182,7 +218,7 @@ function Index() {
     <div className="flex h-screen w-screen flex-col bg-background overflow-hidden">
       <header className="flex items-center justify-between px-5 py-3 border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="flex items-baseline gap-3">
-          <h1 className="font-display text-lg tracking-tight"><b>DUO</b>STUDIO</h1>
+          <Link to="/" search={{}} className="font-display text-lg tracking-tight hover:opacity-80 transition-opacity"><b>DUO</b>STUDIO</Link>
           <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
             dual canvas studio · v0.1
           </span>
@@ -219,6 +255,7 @@ function Index() {
             saving={saveLeftMutation.isPending}
             saved={saveLeftMutation.isSuccess && !saveLeftMutation.isPending}
             boardId={leftMeta?.id}
+            isAuthenticated={isAuthenticated}
           />
         </div>
 
@@ -249,6 +286,7 @@ function Index() {
             saving={saveRightMutation.isPending}
             saved={saveRightMutation.isSuccess && !saveRightMutation.isPending}
             boardId={rightMeta?.id}
+            isAuthenticated={isAuthenticated}
           />
         </div>
 
@@ -295,7 +333,7 @@ function Index() {
 
 function BoardActions({
   label, onCopy, onExport, onReplicate, replicateIcon, onZoom, zoomed,
-  onSave, saving, saved, boardId,
+  onSave, saving, saved, boardId, isAuthenticated,
 }: {
   label: string;
   onCopy: () => void;
@@ -308,18 +346,21 @@ function BoardActions({
   saving: boolean;
   saved: boolean;
   boardId?: string;
+  isAuthenticated: boolean;
 }) {
   const ReplicateIcon = replicateIcon === "right" ? ArrowRightLeft : ArrowLeftRight;
   return (
     <div className="absolute top-3 right-3 z-10 flex items-center gap-1 glass-panel rounded-md p-1">
       <ActionBtn title={`Replicate to other board`} onClick={onReplicate}><ReplicateIcon className="h-3.5 w-3.5" /></ActionBtn>
       <ActionBtn title="Copy to clipboard" onClick={onCopy}><Copy className="h-3.5 w-3.5" /></ActionBtn>
-      <ActionBtn
-        title={boardId ? `Save ${label} (updates board ${boardId.slice(0, 6)}…)` : `Save ${label} (creates new board)`}
-        onClick={onSave}
-      >
-        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Save className="h-3.5 w-3.5" />}
-      </ActionBtn>
+      {isAuthenticated && (
+        <ActionBtn
+          title={boardId ? `Save ${label} (updates board ${boardId.slice(0, 6)}…)` : `Save ${label} (creates new board)`}
+          onClick={onSave}
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Save className="h-3.5 w-3.5" />}
+        </ActionBtn>
+      )}
       <ActionBtn title="Export as PDF" onClick={onExport}><FileDown className="h-3.5 w-3.5" /></ActionBtn>
       <ActionBtn title={zoomed ? "Restore split view" : `Zoom ${label}`} onClick={onZoom}>
         {zoomed ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}

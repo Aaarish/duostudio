@@ -1,7 +1,7 @@
 package com.roya.duostudio_backend.boards;
 
 import com.roya.duostudio_backend.auth.User;
-import jakarta.persistence.OptimisticLockException;
+import com.roya.duostudio_backend.auth.UserDao;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -11,12 +11,16 @@ import java.util.UUID;
 @Service
 public class BoardService {
     private final BoardDao boardDao;
+    private final UserDao userDao;
 
-    public BoardService(BoardDao boardDao) {
+    public BoardService(BoardDao boardDao, UserDao userDao) {
         this.boardDao = boardDao;
+        this.userDao = userDao;
     }
 
-    public BoardResponse createBoard(CreateBoardRequest request, User user) {
+    public BoardResponse createBoard(CreateBoardRequest request, String username) {
+        User user = userDao.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found with username: " + username));
         Board board = new Board(user, request.type(), request.boardData());
 
         boardDao.save(board);

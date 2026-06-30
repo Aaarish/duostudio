@@ -17,11 +17,9 @@ import java.util.List;
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
-    private final AuthUserService authUserService;
 
-    public JwtAuthFilter(JwtUtil jwtUtil, AuthUserService authUserService) {
+    public JwtAuthFilter(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
-        this.authUserService = authUserService;
     }
 
     @Override
@@ -39,10 +37,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = authorizationHeader.substring(7);
 
-        if (jwtUtil.validateToken(token)) {
+        if (jwtUtil.validateToken(token) && jwtUtil.isAccessToken(token)) {
             String username = jwtUtil.extractUsername(token);
-            AuthUser authUser = authUserService.loadUserByUsername(username);
             List<SimpleGrantedAuthority> authorities = jwtUtil.extractRoles(token);
+
+            AuthUser authUser = new AuthUser(username, authorities);
 
             Authentication authentication = new UsernamePasswordAuthenticationToken(authUser, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(authentication);

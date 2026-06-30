@@ -1,4 +1,4 @@
-import { Outlet, Link, createRootRoute } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, useNavigate } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { AuthProvider, useAuth } from "@/lib/auth";
@@ -27,6 +27,11 @@ function NotFoundComponent() {
 function AuthHeaderActions() {
   const { user, isAuthenticated, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    logout();
+    navigate({ to: "/", search: {} });
+  };
   return (
     <div className="fixed top-3 right-3 z-40 flex items-center gap-2">
       {isAuthenticated ? (
@@ -39,7 +44,7 @@ function AuthHeaderActions() {
             {user?.username ?? "Dashboard"}
           </Link>
           <button
-            onClick={logout}
+            onClick={handleLogout}
             title="Log out"
             className="flex items-center gap-1.5 rounded-md glass-panel px-3 py-1.5 text-xs font-mono uppercase tracking-wider hover:bg-muted transition-colors"
           >

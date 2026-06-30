@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -18,6 +19,8 @@ public class User {
     private String email;
     private String username;
     private String password;
+    private String role;
+    private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "user")
     private List<Board> boards;
@@ -30,7 +33,9 @@ public class User {
         this.email = email;
         this.username = username;
         this.password = password;
+        this.role = "USER";
         this.boards = new ArrayList<>();
+        this.createdAt = LocalDateTime.now();
     }
 
     public UUID getId() {
@@ -63,6 +68,22 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public List<Board> getBoards() {

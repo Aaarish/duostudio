@@ -13,15 +13,70 @@ export const API_BASE_URL =
 export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
+  // Send the http-only `refresh_token` cookie on every request (required for
+  // /auth/refresh to mint new access tokens).
+  withCredentials: true,
 });
 
-// Attach token from localStorage to every outgoing request
+// Attach access token from localStorage to every outgoing request.
 api.interceptors.request.use((config) => {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+/**
+ * Call POST /auth/refresh to mint a new access token using the http-only
+ * `refresh_token` cookie. Returns the new access token (and persists it).
+ */
+let refreshInFlight: Promise<string> | null = null;
+export async function refreshAccessToken(): Promise<string> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      // Bypass the request interceptor's stale Authorization header.
+      const res = await axios.post(
+        `${API_BASE_URL}/auth/refresh`,
+        {},
+        { withCredentials: true, headers: { "Content-Type": "application/json" } },
+      );
+      const token = extractToken(res.data);
+      localStorage.setItem("auth_token", token);
+      return token;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
+// On 401, try once to refresh the access token and replay the original request.
+api.interceptors.response.use(
+  (r) => r,
+  async (error) => {
+    const original = error?.config as
+      | (import("axios").InternalAxiosRequestConfig & { _retry?: boolean })
+      | undefined;
+    const status = error?.response?.status;
+    const url: string = original?.url || "";
+    const isAuthRoute = url.includes("/auth/login") || url.includes("/auth/register") || url.includes("/auth/refresh");
+    if (status === 401 && original && !original._retry && !isAuthRoute) {
+      original._retry = true;
+      try {
+        const token = await refreshAccessToken();
+        original.headers = original.headers ?? {};
+        (original.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+        return api.request(original);
+      } catch {
+        // Refresh failed — clear stale creds so the UI can prompt for login.
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth_user");
+      }
+    }
+    return Promise.reject(error);
+  },
+);
 
 // ----------------------------- Types ----------------------------------------
 export type User = {
@@ -35,7 +90,7 @@ export type User = {
 };
 
 /** Backend board shape (matches POST/PUT body + GET response). */
-export type BoardData = { shapes: unknown[] };
+export type BoardData = { shapes: unknown[]; notepadText?: string };
 export type Scratchboard = {
   id: string;
   type?: string;
@@ -46,6 +101,7 @@ export type Scratchboard = {
   /** Optional title — backend may not provide one; UI falls back to id/type. */
   title?: string;
 };
+
 
 // ----------------------------- Helpers --------------------------------------
 /** Decode a JWT payload (no signature verification — display only). */
@@ -165,7 +221,15 @@ export async function fetchBoardsRequest(userId?: string): Promise<Scratchboard[
 
 export async function fetchBoardRequest(id: string): Promise<Scratchboard> {
   const res = await api.get(`/boards/${id}`);
-  return res.data;
+  const data = res.data ?? {};
+  // Some backends serialize `boardData` as a JSON string. Normalize to object.
+  let boardData = data.boardData;
+  if (typeof boardData === "string") {
+    try { boardData = JSON.parse(boardData); } catch { boardData = { shapes: [] }; }
+  }
+  if (!boardData || typeof boardData !== "object") boardData = { shapes: [] };
+  if (!Array.isArray(boardData.shapes)) boardData.shapes = [];
+  return { ...data, boardData } as Scratchboard;
 }
 
 export async function createBoardRequest(payload: {
@@ -182,11 +246,12 @@ export async function createBoardRequest(payload: {
 
 export async function updateBoardRequest(
   id: string,
-  payload: { boardData: BoardData; version?: number },
+  payload: { boardData: BoardData; version?: number; type?: string },
 ) {
   const res = await api.put(`/boards/${id}`, payload);
   return res.data as Scratchboard;
 }
+
 
 export async function deleteBoardRequest(id: string) {
   await api.delete(`/boards/${id}`);

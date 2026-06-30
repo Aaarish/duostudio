@@ -21,7 +21,7 @@ public class BoardController {
 
     @PostMapping
     public ResponseEntity<BoardResponse> createBoard(@RequestBody CreateBoardRequest request, @AuthenticationPrincipal AuthUser user) {
-        return ResponseEntity.ok(boardService.createBoard(request, user.getUser()));
+        return ResponseEntity.ok(boardService.createBoard(request, user.getUsername()));
     }
 
     @GetMapping("/{boardId}")

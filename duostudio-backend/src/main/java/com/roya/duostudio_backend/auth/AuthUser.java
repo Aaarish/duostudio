@@ -9,29 +9,27 @@ import java.util.List;
 
 
 public class AuthUser implements UserDetails {
-    private final User user;
+    private final String username;
+    private final List<SimpleGrantedAuthority> authorities;
 
-    public AuthUser(User user) {
-        this.user = user;
-    }
-
-    public User getUser() {
-        return user;
+    public AuthUser(String username, List<SimpleGrantedAuthority> authorities) {
+        this.username = username;
+        this.authorities = authorities;
     }
 
     @Override
     public String getUsername() {
-        return this.getUser().getUsername();
+        return this.username;
     }
 
     @Override
     public String getPassword() {
-        return user.getPassword();
+        return null;
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        return this.authorities;
     }
 
     @Override
