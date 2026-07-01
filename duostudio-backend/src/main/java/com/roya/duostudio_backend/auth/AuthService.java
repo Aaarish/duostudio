@@ -6,6 +6,8 @@ import com.roya.duostudio_backend.auth.tokens.RefreshTokenDao;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
@@ -129,24 +131,27 @@ public class AuthService {
     }
 
     private void setRefreshCookie(HttpServletResponse response, String refreshToken) {
-        Cookie cookie = new Cookie(REFRESH_COOKIE_NAME, refreshToken);
-        cookie.setHttpOnly(true);   // JS cannot read this - mitigates XSS accessToken theft
-        cookie.setSecure(true);     // HTTPS only - mitigates network interception
-        cookie.setPath("/auth");    // only sent to auth endpoints, not every request
-        cookie.setMaxAge(REFRESH_COOKIE_MAX_AGE_SECONDS);
-        // If client and API are on different subdomains, also set:
-        // cookie.setAttribute("SameSite", "Strict"); (via response header if using Servlet < 6,
-        // or cookie.setAttribute directly on Servlet 6+ / Spring's ResponseCookie builder)
-        response.addCookie(cookie);
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/auth")
+                .maxAge(REFRESH_COOKIE_MAX_AGE_SECONDS)
+                .sameSite("None")
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     private void clearRefreshCookie(HttpServletResponse response) {
-        Cookie cookie = new Cookie(REFRESH_COOKIE_NAME, "");
-        cookie.setHttpOnly(true);
-        cookie.setSecure(true);
-        cookie.setPath("/auth");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/auth")
+                .maxAge(0)
+                .sameSite("None")
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     private String extractRefreshCookie(HttpServletRequest request) {
