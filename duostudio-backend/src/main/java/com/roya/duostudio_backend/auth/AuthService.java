@@ -131,7 +131,7 @@ public class AuthService {
     }
 
     private void setRefreshCookie(HttpServletResponse response, String refreshToken) {
-        ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, refreshToken)
                 .httpOnly(true)
                 .secure(true)
                 .path("/auth")
