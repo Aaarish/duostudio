@@ -117,6 +117,23 @@ function Index() {
     ref?.spawnEditable(kind);
   });
 
+  // Ctrl/Cmd + S saves the currently focused board (only when authenticated).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (!isAuthenticated) return;
+        if (focused === 0) {
+          if (!saveLeftMutation.isPending) saveLeftMutation.mutate();
+        } else {
+          if (!saveRightMutation.isPending) saveRightMutation.mutate();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focused, isAuthenticated, saveLeftMutation, saveRightMutation]);
+
   const focusedApi = focused === 0 ? left : right;
 
   const replicate = (from: BoardApi, to: BoardApi) => {
@@ -216,19 +233,14 @@ function Index() {
 
   return (
     <div className="flex h-screen w-screen flex-col bg-background overflow-hidden">
-      <header className="flex items-center justify-between px-5 py-3 border-b border-border bg-card/50 backdrop-blur-sm">
-        <div className="flex items-baseline gap-3">
+      <header className="grid grid-cols-3 items-center px-5 py-3 border-b border-border bg-card/50 backdrop-blur-sm">
+        <div className="flex items-baseline gap-3 justify-self-start">
           <Link to="/" search={{}} className="font-display text-lg tracking-tight hover:opacity-80 transition-opacity"><b>DUO</b>STUDIO</Link>
           <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
             dual canvas studio · v0.1
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
-            <span>focus:</span>
-            <button onClick={() => setFocused(0)} className={`px-2 py-0.5 rounded ${focused === 0 ? "bg-foreground text-background" : "hover:bg-muted"}`}>01</button>
-            <button onClick={() => setFocused(1)} className={`px-2 py-0.5 rounded ${focused === 1 ? "bg-foreground text-background" : "hover:bg-muted"}`}>02</button>
-          </div>
+        <div className="justify-self-center">
           <button
             onClick={() => setShowShortcuts((s) => !s)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider hover:bg-muted transition-colors"
@@ -236,6 +248,13 @@ function Index() {
             <Keyboard className="h-3.5 w-3.5" />
             shortcuts
           </button>
+        </div>
+        <div className="flex items-center gap-3 justify-self-end">
+          <div className="hidden sm:flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+            <span>focus:</span>
+            <button onClick={() => setFocused(0)} className={`px-2 py-0.5 rounded ${focused === 0 ? "bg-foreground text-background" : "hover:bg-muted"}`}>01</button>
+            <button onClick={() => setFocused(1)} className={`px-2 py-0.5 rounded ${focused === 1 ? "bg-foreground text-background" : "hover:bg-muted"}`}>02</button>
+          </div>
         </div>
       </header>
 
