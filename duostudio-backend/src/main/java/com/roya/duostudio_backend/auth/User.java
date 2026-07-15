@@ -1,10 +1,8 @@
 package com.roya.duostudio_backend.auth;
 
 import com.roya.duostudio_backend.boards.Board;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -16,13 +14,18 @@ import java.util.UUID;
 public class User {
     @Id
     private UUID id;
+    @Column(nullable = false, unique = true)
     private String email;
+    @Column(nullable = false, unique = true)
+    @Size(min = 3, message = "Username must be at least 3 characters long")
     private String username;
+    @Column(nullable = false)
+    @Size(min = 6, message = "Password must be at least 6 characters long")
     private String password;
     private String role;
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "user")
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Board> boards;
 
     public User() {

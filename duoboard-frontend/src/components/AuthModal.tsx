@@ -1,10 +1,18 @@
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { Loader2 } from "lucide-react";
+
+const emailSchema = z.string().trim().nonempty({ message: "Email cannot be empty" }).email({ message: "Invalid email address" }).max(255);
+const usernameSchema = z.string().trim().nonempty({ message: "Username cannot be empty" }).min(3, { message: "Username must be at least 3 characters" }).max(50);
+const passwordSchema = z.string().nonempty({ message: "Password cannot be empty" }).min(6, { message: "Password must be at least 6 characters" }).max(200);
+
+const loginSchema = z.object({ username: usernameSchema, password: passwordSchema });
+const signupSchema = z.object({ email: emailSchema, username: usernameSchema, password: passwordSchema });
 
 type Mode = "login" | "signup";
 
@@ -28,10 +36,21 @@ export function AuthModal({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const schema = mode === "login" ? loginSchema : signupSchema;
+    const parsed = schema.safeParse(
+      mode === "login" ? { username, password } : { email, username, password },
+    );
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Invalid input");
+      return;
+    }
     setLoading(true);
     try {
-      if (mode === "login") await login(username, password);
-      else await signup(email, username, password);
+      if (mode === "login") await login(parsed.data.username, parsed.data.password);
+      else {
+        const d = parsed.data as { email: string; username: string; password: string };
+        await signup(d.email, d.username, d.password);
+      }
       onOpenChange(false);
     } catch (err: unknown) {
       const msg =

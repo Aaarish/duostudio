@@ -17,6 +17,7 @@ public class Board {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", referencedColumnName = "id", nullable = false)
     private User user;
 
     @Enumerated(EnumType.STRING)

@@ -248,8 +248,6 @@ function Index() {
             <Keyboard className="h-3.5 w-3.5" />
             shortcuts
           </button>
-        </div>
-        <div className="flex items-center gap-3 justify-self-end">
           <div className="hidden sm:flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
             <span>focus:</span>
             <button onClick={() => setFocused(0)} className={`px-2 py-0.5 rounded ${focused === 0 ? "bg-foreground text-background" : "hover:bg-muted"}`}>01</button>

@@ -18,6 +18,14 @@ public class AuthUserService {
     }
 
     public AuthUserRecord registerUser(String email, String username, String password) {
+        userDao.findByEmail(email).ifPresent(existingUser -> {
+            throw new IllegalArgumentException("Email already exists");
+        });
+
+        userDao.findByUsername(username).ifPresent(existingUser -> {
+            throw new IllegalArgumentException("Username already exists");
+        });
+
         User user = new User(email, username, passwordEncoder.encode(password));
         User savedUser = userDao.save(user);
 
