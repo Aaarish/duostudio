@@ -12,12 +12,13 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import type { Shape } from "@/whiteboard/types";
 
-type StudioSearch = { boardId?: string };
+type StudioSearch = { boardId?: string; view?: "1" | "2" };
 
 export const Route = createFileRoute("/")({
   component: Index,
   validateSearch: (search: Record<string, unknown>): StudioSearch => ({
     boardId: typeof search.boardId === "string" ? search.boardId : undefined,
+    view: search.view === "2" ? "2" : search.view === "1" ? "1" : undefined,
   }),
 });
 
@@ -26,7 +27,8 @@ type BoardMeta = { id: string; version: number };
 type ZoomState = "none" | "left" | "right";
 
 function Index() {
-  const { boardId } = Route.useSearch();
+  const { boardId, view } = Route.useSearch();
+  const target: 0 | 1 = view === "2" ? 1 : 0;
   const { isAuthenticated } = useAuth();
   const left = useBoard();
   const right = useBoard();
@@ -38,7 +40,7 @@ function Index() {
   const [leftMeta, setLeftMeta] = useState<BoardMeta | null>(null);
   const [rightMeta, setRightMeta] = useState<BoardMeta | null>(null);
 
-  // Load board from `?boardId=` into the left canvas on mount / id change.
+  // Load board from `?boardId=` into the targeted canvas on mount / id change.
   useEffect(() => {
     let cancelled = false;
     if (!boardId) {
@@ -57,18 +59,19 @@ function Index() {
         if (cancelled) return;
         const bd = board.boardData ?? { shapes: [] };
         const shapes = (bd.shapes ?? []) as Shape[];
-        // Map backend board type → UI mode so the canvas renders correctly.
+
         const typeToMode: Record<string, "select" | "freestyle" | "text" | "flowchart"> = {
           SELECT: "select", FREESTYLE: "freestyle", TEXT: "text", FLOWCHART: "flowchart",
         };
         const mode = typeToMode[(board.type || "SELECT").toUpperCase()];
-        if (mode) left.setMode(mode);
-        left.replaceShapes(shapes);
-        // If backend stored notepad text alongside shapes, restore it.
+        const targetApi = target === 0 ? left : right;
+        if (mode) targetApi.setMode(mode);
+        targetApi.replaceShapes(shapes);
         const np = (bd as unknown as { notepadText?: string }).notepadText;
-        if (typeof np === "string") left.setNotepadText(np);
-        setLeftMeta({ id: board.id, version: board.version ?? 0 });
-        setFocused(0);
+        if (typeof np === "string") targetApi.setNotepadText(np);
+        if (target === 0) setLeftMeta({ id: board.id, version: board.version ?? 0 });
+        else setRightMeta({ id: board.id, version: board.version ?? 0 });
+        setFocused(target);
       } catch (err) {
         console.error("Failed to load board", err);
         toast.error(extractApiError(err, "Failed to load board"));
@@ -76,7 +79,7 @@ function Index() {
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardId]);
+  }, [boardId, target]);
 
   const modeToType = (m: string): string => {
     switch (m) {

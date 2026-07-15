@@ -46,8 +46,8 @@ function DashboardPage() {
     mutationFn: createBoardRequest,
     onSuccess: (board) => {
       qc.invalidateQueries({ queryKey: ["boards", user?.userId ?? user?.username] });
-      // Open the freshly-created board in the studio.
-      if (board?.id) navigate({ to: "/", search: { boardId: board.id } });
+      // Open the freshly-created board in the studio (view 01 by default).
+      if (board?.id) navigate({ to: "/", search: { boardId: board.id, view: "1" } });
     },
     onError: (err) => toast.error(extractApiError(err, "Failed to create board")),
   });
@@ -133,7 +133,7 @@ function DashboardPage() {
                 <BoardCard
                   key={b.id}
                   board={b}
-                  onOpen={() => navigate({ to: "/", search: { boardId: b.id } })}
+                  onOpenIn={(view) => navigate({ to: "/", search: { boardId: b.id, view } })}
                   onDelete={() => deleteMutation.mutate(b.id)}
                   deleting={deleteMutation.isPending}
                 />
@@ -151,27 +151,45 @@ function DashboardPage() {
 }
 
 function BoardCard({
-  board, onOpen, onDelete, deleting,
-}: { board: Scratchboard; onOpen: () => void; onDelete: () => void; deleting: boolean }) {
+  board, onOpenIn, onDelete, deleting,
+}: { board: Scratchboard; onOpenIn: (view: "1" | "2") => void; onDelete: () => void; deleting: boolean }) {
   const shapeCount = board.boardData?.shapes?.length ?? 0;
   const title = board.title || `${board.type ?? "Board"} · ${board.id.slice(0, 8)}`;
   return (
-    <li className="group flex items-center justify-between rounded-lg border border-border bg-card p-4 transition-colors hover:border-foreground/30">
-      <button onClick={onOpen} className="flex-1 text-left">
-        <p className="font-medium">{title}</p>
+    <li className="group flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-foreground/30">
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium">{title}</p>
         <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
           {shapeCount} shapes
           {board.updatedAt ? ` · updated ${new Date(board.updatedAt).toLocaleString()}` : ""}
         </p>
-      </button>
-      <button
-        onClick={onDelete}
-        disabled={deleting}
-        className="rounded p-2 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-destructive group-hover:opacity-100 disabled:opacity-50"
-        title="Delete"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onOpenIn("1")}
+          title="Open in view 01 (left board)"
+        >
+          View 01
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onOpenIn("2")}
+          title="Open in view 02 (right board)"
+        >
+          View 02
+        </Button>
+        <button
+          onClick={onDelete}
+          disabled={deleting}
+          className="rounded p-2 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-destructive group-hover:opacity-100 disabled:opacity-50"
+          title="Delete"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
     </li>
   );
 }
