@@ -7,7 +7,8 @@ import { Toolbar } from "@/whiteboard/Toolbar";
 import { useShortcuts } from "@/whiteboard/useShortcuts";
 import { Keyboard, Copy, FileDown, Maximize2, Minimize2, ArrowLeftRight, ArrowRightLeft, Save, Loader2, Check } from "lucide-react";
 import jsPDF from "jspdf";
-import { fetchBoardRequest, updateBoardRequest, createBoardRequest } from "@/lib/api";
+import { fetchBoardRequest, updateBoardRequest, createBoardRequest, extractApiError } from "@/lib/api";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import type { Shape } from "@/whiteboard/types";
 
@@ -70,6 +71,7 @@ function Index() {
         setFocused(0);
       } catch (err) {
         console.error("Failed to load board", err);
+        toast.error(extractApiError(err, "Failed to load board"));
       }
     })();
     return () => { cancelled = true; };
@@ -96,6 +98,7 @@ function Index() {
       return createBoardRequest({ type, boardData });
     },
     onSuccess: (board) => setLeftMeta({ id: board.id, version: board.version ?? (leftMeta?.version ?? 0) + 1 }),
+    onError: (err) => toast.error(extractApiError(err, "Failed to save board")),
   });
 
   const saveRightMutation = useMutation({
@@ -109,6 +112,7 @@ function Index() {
       return createBoardRequest({ type, boardData });
     },
     onSuccess: (board) => setRightMeta({ id: board.id, version: board.version ?? (rightMeta?.version ?? 0) + 1 }),
+    onError: (err) => toast.error(extractApiError(err, "Failed to save board")),
   });
 
 

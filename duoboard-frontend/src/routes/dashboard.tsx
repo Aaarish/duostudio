@@ -7,7 +7,9 @@ import {
   createBoardRequest,
   deleteBoardRequest,
   type Scratchboard,
+  extractApiError,
 } from "@/lib/api";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -47,10 +49,12 @@ function DashboardPage() {
       // Open the freshly-created board in the studio.
       if (board?.id) navigate({ to: "/", search: { boardId: board.id } });
     },
+    onError: (err) => toast.error(extractApiError(err, "Failed to create board")),
   });
   const deleteMutation = useMutation({
     mutationFn: deleteBoardRequest,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["boards", user?.userId ?? user?.username] }),
+    onError: (err) => toast.error(extractApiError(err, "Failed to delete board"))
   });
 
   if (!user) return null;

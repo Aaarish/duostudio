@@ -104,6 +104,39 @@ export type Scratchboard = {
 
 
 // ----------------------------- Helpers --------------------------------------
+/**
+ * Extract a user-facing error message from an unknown error thrown by axios.
+ * Prefers custom server messages (various common field names), then falls back
+ * to the axios `Error.message`, then to the caller-supplied default.
+ */
+export function extractApiError(err: unknown, fallback = "Something went wrong"): string {
+  const anyErr = err as {
+    response?: { data?: unknown; statusText?: string };
+    message?: string;
+  } | undefined;
+  const data = anyErr?.response?.data;
+  if (typeof data === "string" && data.trim()) return data;
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    const candidates = [d.message, d.error, d.detail, d.title, d.errorMessage] as unknown[];
+    for (const c of candidates) {
+      if (typeof c === "string" && c.trim()) return c;
+    }
+    const errs = d.errors;
+    if (Array.isArray(errs) && errs.length) {
+      const first = errs[0];
+      if (typeof first === "string" && first.trim()) return first;
+      if (first && typeof first === "object") {
+        const m = (first as Record<string, unknown>).message ?? (first as Record<string, unknown>).detail;
+        if (typeof m === "string" && m.trim()) return m;
+      }
+    }
+  }
+  if (anyErr?.response?.statusText) return anyErr.response.statusText;
+  if (anyErr?.message) return anyErr.message;
+  return fallback;
+}
+
 /** Decode a JWT payload (no signature verification — display only). */
 export function decodeJwt(token: string): Record<string, unknown> | null {
   try {

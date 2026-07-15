@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
+import { extractApiError } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
 const emailSchema = z.string().trim().nonempty({ message: "Email cannot be empty" }).email({ message: "Invalid email address" }).max(255);
@@ -53,10 +54,7 @@ export function AuthModal({
       }
       onOpenChange(false);
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err instanceof Error ? err.message : "Something went wrong");
-      setError(msg);
+      setError(extractApiError(err, "Something went wrong"));
     } finally {
       setLoading(false);
     }
